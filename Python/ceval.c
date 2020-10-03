@@ -1606,6 +1606,23 @@ main_loop:
             STACK_SHRINK(1);
             goto error;
         }
+	case TARGET(UNARY_INCREMENT): {
+            PyObject *right = TOP();
+	    PyObject *inv,*sum;
+	    //-(~x)=x+1
+            inv=PyNumber_Invert(right);
+            //Py_DECREF(right);
+            if (inv == NULL)
+	      goto error;
+            sum = PyNumber_Negative(inv);
+            Py_DECREF(inv);
+            if (sum == NULL)
+              goto error;
+
+            SET_TOP(sum);
+	    DISPATCH();
+        }
+	 
 
         case TARGET(UNARY_INVERT): {
             PyObject *value = TOP();
