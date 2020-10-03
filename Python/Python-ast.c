@@ -66,7 +66,6 @@ typedef struct {
     PyObject *Import_type;
     PyObject *In_singleton;
     PyObject *In_type;
-    PyObject *IncOp_type;
     PyObject *Interactive_type;
     PyObject *Invert_singleton;
     PyObject *Invert_type;
@@ -312,7 +311,6 @@ void _PyAST_Fini(PyThreadState *tstate)
     Py_CLEAR(state->Import_type);
     Py_CLEAR(state->In_singleton);
     Py_CLEAR(state->In_type);
-    Py_CLEAR(state->IncOp_type);
     Py_CLEAR(state->Interactive_type);
     Py_CLEAR(state->Invert_singleton);
     Py_CLEAR(state->Invert_type);
@@ -713,9 +711,6 @@ static const char * const NamedExpr_fields[]={
 static const char * const BinOp_fields[]={
     "left",
     "op",
-    "right",
-};
-static const char * const IncOp_fields[]={
     "right",
 };
 static const char * const UnaryOp_fields[]={
@@ -1419,7 +1414,6 @@ static int init_types(astmodulestate *state)
         "expr = BoolOp(boolop op, expr* values)\n"
         "     | NamedExpr(expr target, expr value)\n"
         "     | BinOp(expr left, operator op, expr right)\n"
-        "     | IncOp(expr right)\n"
         "     | UnaryOp(unaryop op, expr operand)\n"
         "     | Lambda(arguments args, expr body)\n"
         "     | IfExp(expr test, expr body, expr orelse)\n"
@@ -1463,10 +1457,6 @@ static int init_types(astmodulestate *state)
                                   BinOp_fields, 3,
         "BinOp(expr left, operator op, expr right)");
     if (!state->BinOp_type) return 0;
-    state->IncOp_type = make_type(state, "IncOp", state->expr_type,
-                                  IncOp_fields, 1,
-        "IncOp(expr right)");
-    if (!state->IncOp_type) return 0;
     state->UnaryOp_type = make_type(state, "UnaryOp", state->expr_type,
                                     UnaryOp_fields, 2,
         "UnaryOp(unaryop op, expr operand)");
@@ -2643,28 +2633,6 @@ BinOp(expr_ty left, operator_ty op, expr_ty right, int lineno, int col_offset,
     p->v.BinOp.left = left;
     p->v.BinOp.op = op;
     p->v.BinOp.right = right;
-    p->lineno = lineno;
-    p->col_offset = col_offset;
-    p->end_lineno = end_lineno;
-    p->end_col_offset = end_col_offset;
-    return p;
-}
-
-expr_ty
-IncOp(expr_ty right, int lineno, int col_offset, int end_lineno, int
-      end_col_offset, PyArena *arena)
-{
-    expr_ty p;
-    if (!right) {
-        PyErr_SetString(PyExc_ValueError,
-                        "field 'right' is required for IncOp");
-        return NULL;
-    }
-    p = (expr_ty)PyArena_Malloc(arena, sizeof(*p));
-    if (!p)
-        return NULL;
-    p->kind = IncOp_kind;
-    p->v.IncOp.right = right;
     p->lineno = lineno;
     p->col_offset = col_offset;
     p->end_lineno = end_lineno;
@@ -4064,16 +4032,6 @@ ast2obj_expr(astmodulestate *state, void* _o)
             goto failed;
         Py_DECREF(value);
         value = ast2obj_expr(state, o->v.BinOp.right);
-        if (!value) goto failed;
-        if (PyObject_SetAttr(result, state->right, value) == -1)
-            goto failed;
-        Py_DECREF(value);
-        break;
-    case IncOp_kind:
-        tp = (PyTypeObject *)state->IncOp_type;
-        result = PyType_GenericNew(tp, NULL, NULL);
-        if (!result) goto failed;
-        value = ast2obj_expr(state, o->v.IncOp.right);
         if (!value) goto failed;
         if (PyObject_SetAttr(result, state->right, value) == -1)
             goto failed;
@@ -7315,32 +7273,6 @@ obj2ast_expr(astmodulestate *state, PyObject* obj, expr_ty* out, PyArena* arena)
         if (*out == NULL) goto failed;
         return 0;
     }
-    tp = state->IncOp_type;
-    isinstance = PyObject_IsInstance(obj, tp);
-    if (isinstance == -1) {
-        return 1;
-    }
-    if (isinstance) {
-        expr_ty right;
-
-        if (_PyObject_LookupAttr(obj, state->right, &tmp) < 0) {
-            return 1;
-        }
-        if (tmp == NULL) {
-            PyErr_SetString(PyExc_TypeError, "required field \"right\" missing from IncOp");
-            return 1;
-        }
-        else {
-            int res;
-            res = obj2ast_expr(state, tmp, &right, arena);
-            if (res != 0) goto failed;
-            Py_CLEAR(tmp);
-        }
-        *out = IncOp(right, lineno, col_offset, end_lineno, end_col_offset,
-                     arena);
-        if (*out == NULL) goto failed;
-        return 0;
-    }
     tp = state->UnaryOp_type;
     isinstance = PyObject_IsInstance(obj, tp);
     if (isinstance == -1) {
@@ -9904,10 +9836,6 @@ astmodule_exec(PyObject *m)
         return -1;
     }
     Py_INCREF(state->BinOp_type);
-    if (PyModule_AddObject(m, "IncOp", state->IncOp_type) < 0) {
-        return -1;
-    }
-    Py_INCREF(state->IncOp_type);
     if (PyModule_AddObject(m, "UnaryOp", state->UnaryOp_type) < 0) {
         return -1;
     }

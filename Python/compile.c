@@ -5065,11 +5065,7 @@ compiler_visit_expr1(struct compiler *c, expr_ty e)
         ADDOP(c, YIELD_FROM);
         break;
     case Compare_kind:
-        return compi   code:c Python.a
-   これをすると以下のエラーがでる
- 	 Python/ast.c:222:5:warning: enumeration value 'IncOp_kind' not handled in switch
- 	 Python/compile.c:4994:5:warning: enumeration value 'IncOp_kind' not handled in switch
- 	 Python/symtable.c:1535:5:warning: enumeration value 'IncOp_kind' not handled in switchler_compare(c, e);
+        return compiler_compare(c, e);
     case Call_kind:
         return compiler_call(c, e);
     case Constant_kind:
