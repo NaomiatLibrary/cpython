@@ -1611,14 +1611,33 @@ main_loop:
 	    PyObject *inv,*sum;
 	    //-(~x)=x+1
             inv=PyNumber_Invert(right);
-            //Py_DECREF(right);
             if (inv == NULL)
 	      goto error;
             sum = PyNumber_Negative(inv);
             Py_DECREF(inv);
             if (sum == NULL)
               goto error;
-
+	    //DISPATCH();
+	    PyObject *names = f->f_code->co_names;
+            PyObject *name = GETITEM(names, oparg);
+	    // PyObject *name = right;
+            PyObject *v = sum;
+            PyObject *ns = f->f_locals;
+            int err;
+            if (ns == NULL) {
+                _PyErr_Format(tstate, PyExc_SystemError,
+                              "no locals found when storing %R", name);
+                Py_DECREF(v);
+                goto error;
+            }
+            if (PyDict_CheckExact(ns))
+                err = PyDict_SetItem(ns, name, v);
+            else
+                err = PyObject_SetItem(ns, name, v);
+            Py_DECREF(v);
+            if (err != 0)
+                goto error;
+	    Py_DECREF(right);
             SET_TOP(sum);
 	    DISPATCH();
         }
