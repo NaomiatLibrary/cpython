@@ -158,6 +158,7 @@ typedef struct {
     PyObject *cmpop_type;
     PyObject *col_offset;
     PyObject *comparators;
+    PyObject *compare_type;
     PyObject *comprehension_type;
     PyObject *context_expr;
     PyObject *conversion;
@@ -408,6 +409,7 @@ void _PyAST_Fini(PyThreadState *tstate)
     Py_CLEAR(state->cmpop_type);
     Py_CLEAR(state->col_offset);
     Py_CLEAR(state->comparators);
+    Py_CLEAR(state->compare_type);
     Py_CLEAR(state->comprehension_type);
     Py_CLEAR(state->context_expr);
     Py_CLEAR(state->conversion);
@@ -500,6 +502,7 @@ static int init_identifiers(astmodulestate *state)
     if ((state->cause = PyUnicode_InternFromString("cause")) == NULL) return 0;
     if ((state->col_offset = PyUnicode_InternFromString("col_offset")) == NULL) return 0;
     if ((state->comparators = PyUnicode_InternFromString("comparators")) == NULL) return 0;
+    if ((state->compare_type = PyUnicode_InternFromString("compare_type")) == NULL) return 0;
     if ((state->context_expr = PyUnicode_InternFromString("context_expr")) == NULL) return 0;
     if ((state->conversion = PyUnicode_InternFromString("conversion")) == NULL) return 0;
     if ((state->ctx = PyUnicode_InternFromString("ctx")) == NULL) return 0;
@@ -676,6 +679,7 @@ static const char * const AsyncWith_fields[]={
 static const char * const Switcha_fields[]={
     "test",
     "cases",
+    "compare_type",
 };
 static const char * const Case_fields[]={
     "test",
@@ -1277,7 +1281,7 @@ static int init_types(astmodulestate *state)
         "     | If(expr test, stmt* body, stmt* orelse)\n"
         "     | With(withitem* items, stmt* body, string? type_comment)\n"
         "     | AsyncWith(withitem* items, stmt* body, string? type_comment)\n"
-        "     | Switcha(expr test, stmt* cases)\n"
+        "     | Switcha(expr test, stmt* cases, int? compare_type)\n"
         "     | Case(expr test, stmt* body, stmt* orelse)\n"
         "     | Raise(expr? exc, expr? cause)\n"
         "     | Try(stmt* body, excepthandler* handlers, stmt* orelse, stmt* finalbody)\n"
@@ -1382,9 +1386,12 @@ static int init_types(astmodulestate *state)
         == -1)
         return 0;
     state->Switcha_type = make_type(state, "Switcha", state->stmt_type,
-                                    Switcha_fields, 2,
-        "Switcha(expr test, stmt* cases)");
+                                    Switcha_fields, 3,
+        "Switcha(expr test, stmt* cases, int? compare_type)");
     if (!state->Switcha_type) return 0;
+    if (PyObject_SetAttr(state->Switcha_type, state->compare_type, Py_None) ==
+        -1)
+        return 0;
     state->Case_type = make_type(state, "Case", state->stmt_type, Case_fields,
                                  3,
         "Case(expr test, stmt* body, stmt* orelse)");
@@ -2390,8 +2397,8 @@ AsyncWith(asdl_withitem_seq * items, asdl_stmt_seq * body, string type_comment,
 }
 
 stmt_ty
-Switcha(expr_ty test, asdl_stmt_seq * cases, int lineno, int col_offset, int
-        end_lineno, int end_col_offset, PyArena *arena)
+Switcha(expr_ty test, asdl_stmt_seq * cases, int compare_type, int lineno, int
+        col_offset, int end_lineno, int end_col_offset, PyArena *arena)
 {
     stmt_ty p;
     if (!test) {
@@ -2405,6 +2412,7 @@ Switcha(expr_ty test, asdl_stmt_seq * cases, int lineno, int col_offset, int
     p->kind = Switcha_kind;
     p->v.Switcha.test = test;
     p->v.Switcha.cases = cases;
+    p->v.Switcha.compare_type = compare_type;
     p->lineno = lineno;
     p->col_offset = col_offset;
     p->end_lineno = end_lineno;
@@ -3908,6 +3916,11 @@ ast2obj_stmt(astmodulestate *state, void* _o)
                              ast2obj_stmt);
         if (!value) goto failed;
         if (PyObject_SetAttr(result, state->cases, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        value = ast2obj_int(state, o->v.Switcha.compare_type);
+        if (!value) goto failed;
+        if (PyObject_SetAttr(result, state->compare_type, value) == -1)
             goto failed;
         Py_DECREF(value);
         break;
@@ -6675,6 +6688,7 @@ obj2ast_stmt(astmodulestate *state, PyObject* obj, stmt_ty* out, PyArena* arena)
     if (isinstance) {
         expr_ty test;
         asdl_stmt_seq* cases;
+        int compare_type;
 
         if (_PyObject_LookupAttr(obj, state->test, &tmp) < 0) {
             return 1;
@@ -6722,8 +6736,21 @@ obj2ast_stmt(astmodulestate *state, PyObject* obj, stmt_ty* out, PyArena* arena)
             }
             Py_CLEAR(tmp);
         }
-        *out = Switcha(test, cases, lineno, col_offset, end_lineno,
-                       end_col_offset, arena);
+        if (_PyObject_LookupAttr(obj, state->compare_type, &tmp) < 0) {
+            return 1;
+        }
+        if (tmp == NULL || tmp == Py_None) {
+            Py_CLEAR(tmp);
+            compare_type = 0;
+        }
+        else {
+            int res;
+            res = obj2ast_int(state, tmp, &compare_type, arena);
+            if (res != 0) goto failed;
+            Py_CLEAR(tmp);
+        }
+        *out = Switcha(test, cases, compare_type, lineno, col_offset,
+                       end_lineno, end_col_offset, arena);
         if (*out == NULL) goto failed;
         return 0;
     }

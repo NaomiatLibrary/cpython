@@ -261,6 +261,7 @@ struct _stmt {
         struct {
             expr_ty test;
             asdl_stmt_seq *cases;
+            int compare_type;
         } Switcha;
 
         struct {
@@ -618,10 +619,10 @@ stmt_ty _Py_With(asdl_withitem_seq * items, asdl_stmt_seq * body, string
 stmt_ty _Py_AsyncWith(asdl_withitem_seq * items, asdl_stmt_seq * body, string
                       type_comment, int lineno, int col_offset, int end_lineno,
                       int end_col_offset, PyArena *arena);
-#define Switcha(a0, a1, a2, a3, a4, a5, a6) _Py_Switcha(a0, a1, a2, a3, a4, a5, a6)
-stmt_ty _Py_Switcha(expr_ty test, asdl_stmt_seq * cases, int lineno, int
-                    col_offset, int end_lineno, int end_col_offset, PyArena
-                    *arena);
+#define Switcha(a0, a1, a2, a3, a4, a5, a6, a7) _Py_Switcha(a0, a1, a2, a3, a4, a5, a6, a7)
+stmt_ty _Py_Switcha(expr_ty test, asdl_stmt_seq * cases, int compare_type, int
+                    lineno, int col_offset, int end_lineno, int end_col_offset,
+                    PyArena *arena);
 #define Case(a0, a1, a2, a3, a4, a5, a6, a7) _Py_Case(a0, a1, a2, a3, a4, a5, a6, a7)
 stmt_ty _Py_Case(expr_ty test, asdl_stmt_seq * body, asdl_stmt_seq * orelse,
                  int lineno, int col_offset, int end_lineno, int

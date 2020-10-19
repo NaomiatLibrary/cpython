@@ -36,7 +36,7 @@ module Python
           | With(withitem* items, stmt* body, string? type_comment)
           | AsyncWith(withitem* items, stmt* body, string? type_comment)
 --#ifdef DOSS_SWITCH
-          | Switcha(expr test,stmt* cases)
+          | Switcha(expr test,stmt* cases,int? compare_type)
 	  | Case(expr test, stmt* body,stmt* orelse)
 --#endif
           | Raise(expr? exc, expr? cause)

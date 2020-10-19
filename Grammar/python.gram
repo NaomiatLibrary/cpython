@@ -81,6 +81,7 @@ compound_stmt[stmt_ty]:
     | &'while' while_stmt
 #ifdef DOSS_SWITCH
     | &'switcha' switcha_stmt
+    | &'switchb' switchb_stmt
 #endif
 
 # NOTE: annotated_rhs may start with 'yield'; yield_expr must start with 'yield'
@@ -167,7 +168,9 @@ else_block[asdl_stmt_seq*]: 'else' ':' b=block { b }
 
 #ifdef DOSS_SWITCH
 switcha_stmt[stmt_ty]:
-    | 'switcha' a=disjunction ':' NEWLINE INDENT b=case_block DEDENT {_Py_Switcha(a,CHECK((asdl_stmt_seq*)_PyPegen_singleton_seq(p, b)),EXTRA)}
+    | 'switcha' a=disjunction ':' NEWLINE INDENT b=case_block DEDENT {_Py_Switcha(a,CHECK((asdl_stmt_seq*)_PyPegen_singleton_seq(p, b)),0,EXTRA)}
+switchb_stmt[stmt_ty]:
+    | 'switchb' a=disjunction ':' NEWLINE INDENT b=case_block DEDENT {_Py_Switcha(a,CHECK((asdl_stmt_seq*)_PyPegen_singleton_seq(p, b)),1,EXTRA)}
 case_block[stmt_ty]:
     | 'case' a=atom ':'  b=block c=case_block {_Py_Case(a,b, CHECK(_PyPegen_singleton_seq(p, c)),EXTRA)}
     | 'case' a=atom ':'  b=block c=[default_block] {_Py_Case(a,b,c,EXTRA)}

@@ -2747,16 +2747,30 @@ compiler_if(struct compiler *c, stmt_ty s)
 static int
 compiler_case(struct compiler *c, stmt_ty s)
 {
-  basicblock *end, *next;
+  basicblock *start,*is,*end, *next;
+  start = compiler_new_block(c);
+  is = compiler_new_block(c);
   next = compiler_new_block(c);
   end = compiler_new_block(c);
   if (next == NULL || end == NULL)return 0;
   assert(s->kind == Case_kind);
 
-  ADDOP(c, DUP_TOP);
-  VISIT(c,expr,s->v.Case.test);
+  ADDOP(c, DUP_TOP_TWO);
+
+  ADDOP_JUMP(c, POP_JUMP_IF_TRUE,is);
+  //if top=0
   cmpop_ty op=Eq;
+  VISIT(c,expr,s->v.Case.test);
   ADDOP_COMPARE(c,op);
+  ADDOP_JUMP(c, JUMP_ABSOLUTE, start);
+
+  //if top=1
+  compiler_use_next_block(c,is);
+  op=Is;
+  VISIT(c,expr,s->v.Case.test);
+  ADDOP_COMPARE(c,op);
+  
+  compiler_use_next_block(c,start);
   ADDOP_JUMP(c, POP_JUMP_IF_FALSE, next);
   VISIT_SEQ(c, stmt, s->v.Case.body);
   ADDOP_JUMP(c, JUMP_ABSOLUTE, end);
@@ -2778,8 +2792,10 @@ compiler_switch(struct compiler *c, stmt_ty s)
     }
    assert(s->kind == Switcha_kind);
    VISIT(c,expr,s->v.Switcha.test);
+   ADDOP_LOAD_CONST_NEW(c, PyLong_FromLong(s->v.Switcha.compare_type));
    compiler_use_next_block(c, next);
    VISIT_SEQ(c,stmt,s->v.Switcha.cases);
+   ADDOP(c, POP_TOP);
    ADDOP(c, POP_TOP);
    compiler_use_next_block(c, end);
    return 1;
