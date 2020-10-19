@@ -158,10 +158,10 @@ enum _stmt_kind {FunctionDef_kind=1, AsyncFunctionDef_kind=2, ClassDef_kind=3,
                   Return_kind=4, Delete_kind=5, Assign_kind=6,
                   AugAssign_kind=7, AnnAssign_kind=8, For_kind=9,
                   AsyncFor_kind=10, While_kind=11, If_kind=12, With_kind=13,
-                  AsyncWith_kind=14, Raise_kind=15, Try_kind=16,
-                  Assert_kind=17, Import_kind=18, ImportFrom_kind=19,
-                  Global_kind=20, Nonlocal_kind=21, Expr_kind=22, Pass_kind=23,
-                  Break_kind=24, Continue_kind=25};
+                  AsyncWith_kind=14, Switcha_kind=15, Case_kind=16,
+                  Raise_kind=17, Try_kind=18, Assert_kind=19, Import_kind=20,
+                  ImportFrom_kind=21, Global_kind=22, Nonlocal_kind=23,
+                  Expr_kind=24, Pass_kind=25, Break_kind=26, Continue_kind=27};
 struct _stmt {
     enum _stmt_kind kind;
     union {
@@ -257,6 +257,17 @@ struct _stmt {
             asdl_stmt_seq *body;
             string type_comment;
         } AsyncWith;
+
+        struct {
+            expr_ty test;
+            asdl_stmt_seq *cases;
+        } Switcha;
+
+        struct {
+            expr_ty test;
+            asdl_stmt_seq *body;
+            asdl_stmt_seq *orelse;
+        } Case;
 
         struct {
             expr_ty exc;
@@ -607,6 +618,14 @@ stmt_ty _Py_With(asdl_withitem_seq * items, asdl_stmt_seq * body, string
 stmt_ty _Py_AsyncWith(asdl_withitem_seq * items, asdl_stmt_seq * body, string
                       type_comment, int lineno, int col_offset, int end_lineno,
                       int end_col_offset, PyArena *arena);
+#define Switcha(a0, a1, a2, a3, a4, a5, a6) _Py_Switcha(a0, a1, a2, a3, a4, a5, a6)
+stmt_ty _Py_Switcha(expr_ty test, asdl_stmt_seq * cases, int lineno, int
+                    col_offset, int end_lineno, int end_col_offset, PyArena
+                    *arena);
+#define Case(a0, a1, a2, a3, a4, a5, a6, a7) _Py_Case(a0, a1, a2, a3, a4, a5, a6, a7)
+stmt_ty _Py_Case(expr_ty test, asdl_stmt_seq * body, asdl_stmt_seq * orelse,
+                 int lineno, int col_offset, int end_lineno, int
+                 end_col_offset, PyArena *arena);
 #define Raise(a0, a1, a2, a3, a4, a5, a6) _Py_Raise(a0, a1, a2, a3, a4, a5, a6)
 stmt_ty _Py_Raise(expr_ty exc, expr_ty cause, int lineno, int col_offset, int
                   end_lineno, int end_col_offset, PyArena *arena);

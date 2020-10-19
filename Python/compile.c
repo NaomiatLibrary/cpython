@@ -2743,6 +2743,49 @@ compiler_if(struct compiler *c, stmt_ty s)
     compiler_use_next_block(c, end);
     return 1;
 }
+#ifdef DOSS_SWITCH
+static int
+compiler_case(struct compiler *c, stmt_ty s)
+{
+  basicblock *end, *next;
+  next = compiler_new_block(c);
+  end = compiler_new_block(c);
+  if (next == NULL || end == NULL)return 0;
+  assert(s->kind == Case_kind);
+
+  ADDOP(c, DUP_TOP);
+  VISIT(c,expr,s->v.Case.test);
+  cmpop_ty op=Eq;
+  ADDOP_COMPARE(c,op);
+  ADDOP_JUMP(c, POP_JUMP_IF_FALSE, next);
+  VISIT_SEQ(c, stmt, s->v.Case.body);
+  ADDOP_JUMP(c, JUMP_ABSOLUTE, end);
+  compiler_use_next_block(c, next);
+  if(s->v.Case.orelse){ 
+    VISIT_SEQ(c,stmt,s->v.Case.orelse);
+  }
+  compiler_use_next_block(c, end);
+  return 1;
+}
+static int
+compiler_switch(struct compiler *c, stmt_ty s)
+{
+   basicblock *end, *next;
+   next = compiler_new_block(c);
+   end = compiler_new_block(c);
+   if (next == NULL || end == NULL) {
+        return 0;
+    }
+   assert(s->kind == Switcha_kind);
+   VISIT(c,expr,s->v.Switcha.test);
+   compiler_use_next_block(c, next);
+   VISIT_SEQ(c,stmt,s->v.Switcha.cases);
+   ADDOP(c, POP_TOP);
+   compiler_use_next_block(c, end);
+   return 1;
+}
+
+#endif
 
 static int
 compiler_for(struct compiler *c, stmt_ty s)
@@ -3411,6 +3454,12 @@ compiler_visit_stmt(struct compiler *c, stmt_ty s)
         return compiler_while(c, s);
     case If_kind:
         return compiler_if(c, s);
+ #ifdef DOSS_SWITCH
+    case Switcha_kind:
+        return compiler_switch(c, s);
+    case Case_kind:
+        return compiler_case(c, s);
+ #endif
     case Raise_kind:
         n = 0;
         if (s->v.Raise.exc) {

@@ -1291,6 +1291,18 @@ symtable_visit_stmt(struct symtable *st, stmt_ty s)
         if (s->v.If.orelse)
             VISIT_SEQ(st, stmt, s->v.If.orelse);
         break;
+#ifdef DOSS_SWITCH
+    case Switcha_kind:
+        VISIT(st, expr, s->v.Switcha.test);
+        VISIT_SEQ(st, stmt, s->v.Switcha.cases);
+        break;
+    case Case_kind:
+      VISIT(st,expr,s->v.Case.test)
+      VISIT_SEQ(st, stmt, s->v.Case.body);
+        if (s->v.Case.orelse)
+            VISIT_SEQ(st, stmt, s->v.Case.orelse);
+	break;
+#endif
     case Raise_kind:
         if (s->v.Raise.exc) {
             VISIT(st, expr, s->v.Raise.exc);

@@ -401,6 +401,12 @@ validate_stmt(stmt_ty stmt)
         return validate_expr(stmt->v.If.test, Load) &&
             validate_body(stmt->v.If.body, "If") &&
             validate_stmts(stmt->v.If.orelse);
+#ifdef DOSS_SWITCH
+    case Switcha_kind:
+      return 1;
+    case Case_kind:
+      return 1;
+#endif
     case With_kind:
         if (!validate_nonempty_seq(stmt->v.With.items, "items", "With"))
             return 0;

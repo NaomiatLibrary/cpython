@@ -32,6 +32,7 @@ typedef struct {
     PyObject *BoolOp_type;
     PyObject *Break_type;
     PyObject *Call_type;
+    PyObject *Case_type;
     PyObject *ClassDef_type;
     PyObject *Compare_type;
     PyObject *Constant_type;
@@ -119,6 +120,7 @@ typedef struct {
     PyObject *Sub_singleton;
     PyObject *Sub_type;
     PyObject *Subscript_type;
+    PyObject *Switcha_type;
     PyObject *Try_type;
     PyObject *Tuple_type;
     PyObject *TypeIgnore_type;
@@ -151,6 +153,7 @@ typedef struct {
     PyObject *bases;
     PyObject *body;
     PyObject *boolop_type;
+    PyObject *cases;
     PyObject *cause;
     PyObject *cmpop_type;
     PyObject *col_offset;
@@ -279,6 +282,7 @@ void _PyAST_Fini(PyThreadState *tstate)
     Py_CLEAR(state->BoolOp_type);
     Py_CLEAR(state->Break_type);
     Py_CLEAR(state->Call_type);
+    Py_CLEAR(state->Case_type);
     Py_CLEAR(state->ClassDef_type);
     Py_CLEAR(state->Compare_type);
     Py_CLEAR(state->Constant_type);
@@ -366,6 +370,7 @@ void _PyAST_Fini(PyThreadState *tstate)
     Py_CLEAR(state->Sub_singleton);
     Py_CLEAR(state->Sub_type);
     Py_CLEAR(state->Subscript_type);
+    Py_CLEAR(state->Switcha_type);
     Py_CLEAR(state->Try_type);
     Py_CLEAR(state->Tuple_type);
     Py_CLEAR(state->TypeIgnore_type);
@@ -398,6 +403,7 @@ void _PyAST_Fini(PyThreadState *tstate)
     Py_CLEAR(state->bases);
     Py_CLEAR(state->body);
     Py_CLEAR(state->boolop_type);
+    Py_CLEAR(state->cases);
     Py_CLEAR(state->cause);
     Py_CLEAR(state->cmpop_type);
     Py_CLEAR(state->col_offset);
@@ -490,6 +496,7 @@ static int init_identifiers(astmodulestate *state)
     if ((state->attr = PyUnicode_InternFromString("attr")) == NULL) return 0;
     if ((state->bases = PyUnicode_InternFromString("bases")) == NULL) return 0;
     if ((state->body = PyUnicode_InternFromString("body")) == NULL) return 0;
+    if ((state->cases = PyUnicode_InternFromString("cases")) == NULL) return 0;
     if ((state->cause = PyUnicode_InternFromString("cause")) == NULL) return 0;
     if ((state->col_offset = PyUnicode_InternFromString("col_offset")) == NULL) return 0;
     if ((state->comparators = PyUnicode_InternFromString("comparators")) == NULL) return 0;
@@ -665,6 +672,15 @@ static const char * const AsyncWith_fields[]={
     "items",
     "body",
     "type_comment",
+};
+static const char * const Switcha_fields[]={
+    "test",
+    "cases",
+};
+static const char * const Case_fields[]={
+    "test",
+    "body",
+    "orelse",
 };
 static const char * const Raise_fields[]={
     "exc",
@@ -1261,6 +1277,8 @@ static int init_types(astmodulestate *state)
         "     | If(expr test, stmt* body, stmt* orelse)\n"
         "     | With(withitem* items, stmt* body, string? type_comment)\n"
         "     | AsyncWith(withitem* items, stmt* body, string? type_comment)\n"
+        "     | Switcha(expr test, stmt* cases)\n"
+        "     | Case(expr test, stmt* body, stmt* orelse)\n"
         "     | Raise(expr? exc, expr? cause)\n"
         "     | Try(stmt* body, excepthandler* handlers, stmt* orelse, stmt* finalbody)\n"
         "     | Assert(expr test, expr? msg)\n"
@@ -1363,6 +1381,14 @@ static int init_types(astmodulestate *state)
     if (PyObject_SetAttr(state->AsyncWith_type, state->type_comment, Py_None)
         == -1)
         return 0;
+    state->Switcha_type = make_type(state, "Switcha", state->stmt_type,
+                                    Switcha_fields, 2,
+        "Switcha(expr test, stmt* cases)");
+    if (!state->Switcha_type) return 0;
+    state->Case_type = make_type(state, "Case", state->stmt_type, Case_fields,
+                                 3,
+        "Case(expr test, stmt* body, stmt* orelse)");
+    if (!state->Case_type) return 0;
     state->Raise_type = make_type(state, "Raise", state->stmt_type,
                                   Raise_fields, 2,
         "Raise(expr? exc, expr? cause)");
@@ -2356,6 +2382,53 @@ AsyncWith(asdl_withitem_seq * items, asdl_stmt_seq * body, string type_comment,
     p->v.AsyncWith.items = items;
     p->v.AsyncWith.body = body;
     p->v.AsyncWith.type_comment = type_comment;
+    p->lineno = lineno;
+    p->col_offset = col_offset;
+    p->end_lineno = end_lineno;
+    p->end_col_offset = end_col_offset;
+    return p;
+}
+
+stmt_ty
+Switcha(expr_ty test, asdl_stmt_seq * cases, int lineno, int col_offset, int
+        end_lineno, int end_col_offset, PyArena *arena)
+{
+    stmt_ty p;
+    if (!test) {
+        PyErr_SetString(PyExc_ValueError,
+                        "field 'test' is required for Switcha");
+        return NULL;
+    }
+    p = (stmt_ty)PyArena_Malloc(arena, sizeof(*p));
+    if (!p)
+        return NULL;
+    p->kind = Switcha_kind;
+    p->v.Switcha.test = test;
+    p->v.Switcha.cases = cases;
+    p->lineno = lineno;
+    p->col_offset = col_offset;
+    p->end_lineno = end_lineno;
+    p->end_col_offset = end_col_offset;
+    return p;
+}
+
+stmt_ty
+Case(expr_ty test, asdl_stmt_seq * body, asdl_stmt_seq * orelse, int lineno,
+     int col_offset, int end_lineno, int end_col_offset, PyArena *arena)
+{
+    stmt_ty p;
+    if (!test) {
+        PyErr_SetString(PyExc_ValueError,
+                        "field 'test' is required for Case");
+        return NULL;
+    }
+    p = (stmt_ty)PyArena_Malloc(arena, sizeof(*p));
+    if (!p)
+        return NULL;
+    p->kind = Case_kind;
+    p->v.Case.test = test;
+    p->v.Case.body = body;
+    p->v.Case.orelse = orelse;
     p->lineno = lineno;
     p->col_offset = col_offset;
     p->end_lineno = end_lineno;
@@ -3819,6 +3892,42 @@ ast2obj_stmt(astmodulestate *state, void* _o)
         value = ast2obj_string(state, o->v.AsyncWith.type_comment);
         if (!value) goto failed;
         if (PyObject_SetAttr(result, state->type_comment, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        break;
+    case Switcha_kind:
+        tp = (PyTypeObject *)state->Switcha_type;
+        result = PyType_GenericNew(tp, NULL, NULL);
+        if (!result) goto failed;
+        value = ast2obj_expr(state, o->v.Switcha.test);
+        if (!value) goto failed;
+        if (PyObject_SetAttr(result, state->test, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        value = ast2obj_list(state, (asdl_seq*)o->v.Switcha.cases,
+                             ast2obj_stmt);
+        if (!value) goto failed;
+        if (PyObject_SetAttr(result, state->cases, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        break;
+    case Case_kind:
+        tp = (PyTypeObject *)state->Case_type;
+        result = PyType_GenericNew(tp, NULL, NULL);
+        if (!result) goto failed;
+        value = ast2obj_expr(state, o->v.Case.test);
+        if (!value) goto failed;
+        if (PyObject_SetAttr(result, state->test, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        value = ast2obj_list(state, (asdl_seq*)o->v.Case.body, ast2obj_stmt);
+        if (!value) goto failed;
+        if (PyObject_SetAttr(result, state->body, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        value = ast2obj_list(state, (asdl_seq*)o->v.Case.orelse, ast2obj_stmt);
+        if (!value) goto failed;
+        if (PyObject_SetAttr(result, state->orelse, value) == -1)
             goto failed;
         Py_DECREF(value);
         break;
@@ -6555,6 +6664,160 @@ obj2ast_stmt(astmodulestate *state, PyObject* obj, stmt_ty* out, PyArena* arena)
         }
         *out = AsyncWith(items, body, type_comment, lineno, col_offset,
                          end_lineno, end_col_offset, arena);
+        if (*out == NULL) goto failed;
+        return 0;
+    }
+    tp = state->Switcha_type;
+    isinstance = PyObject_IsInstance(obj, tp);
+    if (isinstance == -1) {
+        return 1;
+    }
+    if (isinstance) {
+        expr_ty test;
+        asdl_stmt_seq* cases;
+
+        if (_PyObject_LookupAttr(obj, state->test, &tmp) < 0) {
+            return 1;
+        }
+        if (tmp == NULL) {
+            PyErr_SetString(PyExc_TypeError, "required field \"test\" missing from Switcha");
+            return 1;
+        }
+        else {
+            int res;
+            res = obj2ast_expr(state, tmp, &test, arena);
+            if (res != 0) goto failed;
+            Py_CLEAR(tmp);
+        }
+        if (_PyObject_LookupAttr(obj, state->cases, &tmp) < 0) {
+            return 1;
+        }
+        if (tmp == NULL) {
+            PyErr_SetString(PyExc_TypeError, "required field \"cases\" missing from Switcha");
+            return 1;
+        }
+        else {
+            int res;
+            Py_ssize_t len;
+            Py_ssize_t i;
+            if (!PyList_Check(tmp)) {
+                PyErr_Format(PyExc_TypeError, "Switcha field \"cases\" must be a list, not a %.200s", _PyType_Name(Py_TYPE(tmp)));
+                goto failed;
+            }
+            len = PyList_GET_SIZE(tmp);
+            cases = _Py_asdl_stmt_seq_new(len, arena);
+            if (cases == NULL) goto failed;
+            for (i = 0; i < len; i++) {
+                stmt_ty val;
+                PyObject *tmp2 = PyList_GET_ITEM(tmp, i);
+                Py_INCREF(tmp2);
+                res = obj2ast_stmt(state, tmp2, &val, arena);
+                Py_DECREF(tmp2);
+                if (res != 0) goto failed;
+                if (len != PyList_GET_SIZE(tmp)) {
+                    PyErr_SetString(PyExc_RuntimeError, "Switcha field \"cases\" changed size during iteration");
+                    goto failed;
+                }
+                asdl_seq_SET(cases, i, val);
+            }
+            Py_CLEAR(tmp);
+        }
+        *out = Switcha(test, cases, lineno, col_offset, end_lineno,
+                       end_col_offset, arena);
+        if (*out == NULL) goto failed;
+        return 0;
+    }
+    tp = state->Case_type;
+    isinstance = PyObject_IsInstance(obj, tp);
+    if (isinstance == -1) {
+        return 1;
+    }
+    if (isinstance) {
+        expr_ty test;
+        asdl_stmt_seq* body;
+        asdl_stmt_seq* orelse;
+
+        if (_PyObject_LookupAttr(obj, state->test, &tmp) < 0) {
+            return 1;
+        }
+        if (tmp == NULL) {
+            PyErr_SetString(PyExc_TypeError, "required field \"test\" missing from Case");
+            return 1;
+        }
+        else {
+            int res;
+            res = obj2ast_expr(state, tmp, &test, arena);
+            if (res != 0) goto failed;
+            Py_CLEAR(tmp);
+        }
+        if (_PyObject_LookupAttr(obj, state->body, &tmp) < 0) {
+            return 1;
+        }
+        if (tmp == NULL) {
+            PyErr_SetString(PyExc_TypeError, "required field \"body\" missing from Case");
+            return 1;
+        }
+        else {
+            int res;
+            Py_ssize_t len;
+            Py_ssize_t i;
+            if (!PyList_Check(tmp)) {
+                PyErr_Format(PyExc_TypeError, "Case field \"body\" must be a list, not a %.200s", _PyType_Name(Py_TYPE(tmp)));
+                goto failed;
+            }
+            len = PyList_GET_SIZE(tmp);
+            body = _Py_asdl_stmt_seq_new(len, arena);
+            if (body == NULL) goto failed;
+            for (i = 0; i < len; i++) {
+                stmt_ty val;
+                PyObject *tmp2 = PyList_GET_ITEM(tmp, i);
+                Py_INCREF(tmp2);
+                res = obj2ast_stmt(state, tmp2, &val, arena);
+                Py_DECREF(tmp2);
+                if (res != 0) goto failed;
+                if (len != PyList_GET_SIZE(tmp)) {
+                    PyErr_SetString(PyExc_RuntimeError, "Case field \"body\" changed size during iteration");
+                    goto failed;
+                }
+                asdl_seq_SET(body, i, val);
+            }
+            Py_CLEAR(tmp);
+        }
+        if (_PyObject_LookupAttr(obj, state->orelse, &tmp) < 0) {
+            return 1;
+        }
+        if (tmp == NULL) {
+            PyErr_SetString(PyExc_TypeError, "required field \"orelse\" missing from Case");
+            return 1;
+        }
+        else {
+            int res;
+            Py_ssize_t len;
+            Py_ssize_t i;
+            if (!PyList_Check(tmp)) {
+                PyErr_Format(PyExc_TypeError, "Case field \"orelse\" must be a list, not a %.200s", _PyType_Name(Py_TYPE(tmp)));
+                goto failed;
+            }
+            len = PyList_GET_SIZE(tmp);
+            orelse = _Py_asdl_stmt_seq_new(len, arena);
+            if (orelse == NULL) goto failed;
+            for (i = 0; i < len; i++) {
+                stmt_ty val;
+                PyObject *tmp2 = PyList_GET_ITEM(tmp, i);
+                Py_INCREF(tmp2);
+                res = obj2ast_stmt(state, tmp2, &val, arena);
+                Py_DECREF(tmp2);
+                if (res != 0) goto failed;
+                if (len != PyList_GET_SIZE(tmp)) {
+                    PyErr_SetString(PyExc_RuntimeError, "Case field \"orelse\" changed size during iteration");
+                    goto failed;
+                }
+                asdl_seq_SET(orelse, i, val);
+            }
+            Py_CLEAR(tmp);
+        }
+        *out = Case(test, body, orelse, lineno, col_offset, end_lineno,
+                    end_col_offset, arena);
         if (*out == NULL) goto failed;
         return 0;
     }
@@ -9797,6 +10060,14 @@ astmodule_exec(PyObject *m)
         return -1;
     }
     Py_INCREF(state->AsyncWith_type);
+    if (PyModule_AddObject(m, "Switcha", state->Switcha_type) < 0) {
+        return -1;
+    }
+    Py_INCREF(state->Switcha_type);
+    if (PyModule_AddObject(m, "Case", state->Case_type) < 0) {
+        return -1;
+    }
+    Py_INCREF(state->Case_type);
     if (PyModule_AddObject(m, "Raise", state->Raise_type) < 0) {
         return -1;
     }

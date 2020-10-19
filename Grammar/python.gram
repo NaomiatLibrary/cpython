@@ -79,6 +79,9 @@ compound_stmt[stmt_ty]:
     | &('for' | ASYNC) for_stmt
     | &'try' try_stmt
     | &'while' while_stmt
+#ifdef DOSS_SWITCH
+    | &'switcha' switcha_stmt
+#endif
 
 # NOTE: annotated_rhs may start with 'yield'; yield_expr must start with 'yield'
 assignment[stmt_ty]:
@@ -161,6 +164,15 @@ elif_stmt[stmt_ty]:
     | 'elif' a=named_expression ':' b=block c=elif_stmt { _Py_If(a, b, CHECK(_PyPegen_singleton_seq(p, c)), EXTRA) }
     | 'elif' a=named_expression ':' b=block c=[else_block] { _Py_If(a, b, c, EXTRA) }
 else_block[asdl_stmt_seq*]: 'else' ':' b=block { b }
+
+#ifdef DOSS_SWITCH
+switcha_stmt[stmt_ty]:
+    | 'switcha' a=disjunction ':' NEWLINE INDENT b=case_block DEDENT {_Py_Switcha(a,CHECK((asdl_stmt_seq*)_PyPegen_singleton_seq(p, b)),EXTRA)}
+case_block[stmt_ty]:
+    | 'case' a=atom ':'  b=block c=case_block {_Py_Case(a,b, CHECK(_PyPegen_singleton_seq(p, c)),EXTRA)}
+    | 'case' a=atom ':'  b=block c=[default_block] {_Py_Case(a,b,c,EXTRA)}
+default_block[asdl_stmt_seq*]: 'defaulta' ':' b=block {b}
+#endif
 
 while_stmt[stmt_ty]:
     | 'while' a=named_expression ':' b=block c=[else_block] { _Py_While(a, b, c, EXTRA) }
