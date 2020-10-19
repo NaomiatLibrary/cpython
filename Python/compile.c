@@ -902,6 +902,9 @@ stack_effect(int opcode, int oparg, int jump)
         case UNARY_NEGATIVE:
         case UNARY_NOT:
         case UNARY_INVERT:
+#ifdef DOSS_INCREMENT
+        case UNARY_INCREMENT:
+#endif
             return 0;
 
         case SET_ADD:
@@ -3464,6 +3467,10 @@ unaryop(unaryop_ty op)
         return UNARY_POSITIVE;
     case USub:
         return UNARY_NEGATIVE;
+#ifdef DOSS_INCREMENT
+    case UInc:
+        return UNARY_INCREMENT;
+#endif
     default:
         PyErr_Format(PyExc_SystemError,
             "unary op %d should not be possible", op);
@@ -5005,8 +5012,20 @@ compiler_visit_expr1(struct compiler *c, expr_ty e)
         ADDOP(c, binop(e->v.BinOp.op));
         break;
     case UnaryOp_kind:
-        VISIT(c, expr, e->v.UnaryOp.operand);
-        ADDOP(c, unaryop(e->v.UnaryOp.op));
+#ifdef DOSS_INCREMENT
+      if(e->v.UnaryOp.op==UInc){
+	  VISIT(c, expr, e->v.UnaryOp.operand);
+	  ADDOP(c, unaryop(e->v.UnaryOp.op));
+	  ADDOP(c, DUP_TOP);
+	  assert( e->v.UnaryOp.operand->kind==Name_kind);
+	  compiler_nameop(c,e->v.UnaryOp.operand->v.Name.id,Store);
+	}else{
+#endif
+	   VISIT(c, expr, e->v.UnaryOp.operand);
+	   ADDOP(c, unaryop(e->v.UnaryOp.op));
+#ifdef DOSS_INCREMENT
+	}
+#endif
         break;
     case Lambda_kind:
         return compiler_lambda(c, e);

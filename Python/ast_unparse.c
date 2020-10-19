@@ -181,6 +181,9 @@ append_ast_unaryop(_PyUnicodeWriter *writer, expr_ty e, int level)
     case Not: op = "not "; pr = PR_NOT; break;
     case UAdd: op = "+"; pr = PR_FACTOR; break;
     case USub: op = "-"; pr = PR_FACTOR; break;
+#ifdef DOSS_INCREMENT
+    case UInc: op = "++";pr = PR_FACTOR; break;
+#endif
     default:
         PyErr_SetString(PyExc_SystemError,
                         "unknown unary operator");

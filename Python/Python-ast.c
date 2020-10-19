@@ -124,6 +124,8 @@ typedef struct {
     PyObject *TypeIgnore_type;
     PyObject *UAdd_singleton;
     PyObject *UAdd_type;
+    PyObject *UInc_singleton;
+    PyObject *UInc_type;
     PyObject *USub_singleton;
     PyObject *USub_type;
     PyObject *UnaryOp_type;
@@ -369,6 +371,8 @@ void _PyAST_Fini(PyThreadState *tstate)
     Py_CLEAR(state->TypeIgnore_type);
     Py_CLEAR(state->UAdd_singleton);
     Py_CLEAR(state->UAdd_type);
+    Py_CLEAR(state->UInc_singleton);
+    Py_CLEAR(state->UInc_type);
     Py_CLEAR(state->USub_singleton);
     Py_CLEAR(state->USub_type);
     Py_CLEAR(state->UnaryOp_type);
@@ -1707,7 +1711,7 @@ static int init_types(astmodulestate *state)
                                                   NULL);
     if (!state->FloorDiv_singleton) return 0;
     state->unaryop_type = make_type(state, "unaryop", state->AST_type, NULL, 0,
-        "unaryop = Invert | Not | UAdd | USub");
+        "unaryop = Invert | Not | UAdd | USub | UInc");
     if (!state->unaryop_type) return 0;
     if (!add_attributes(state, state->unaryop_type, NULL, 0)) return 0;
     state->Invert_type = make_type(state, "Invert", state->unaryop_type, NULL,
@@ -1736,6 +1740,12 @@ static int init_types(astmodulestate *state)
     state->USub_singleton = PyType_GenericNew((PyTypeObject *)state->USub_type,
                                               NULL, NULL);
     if (!state->USub_singleton) return 0;
+    state->UInc_type = make_type(state, "UInc", state->unaryop_type, NULL, 0,
+        "UInc");
+    if (!state->UInc_type) return 0;
+    state->UInc_singleton = PyType_GenericNew((PyTypeObject *)state->UInc_type,
+                                              NULL, NULL);
+    if (!state->UInc_singleton) return 0;
     state->cmpop_type = make_type(state, "cmpop", state->AST_type, NULL, 0,
         "cmpop = Eq | NotEq | Lt | LtE | Gt | GtE | Is | IsNot | In | NotIn");
     if (!state->cmpop_type) return 0;
@@ -4540,6 +4550,9 @@ PyObject* ast2obj_unaryop(astmodulestate *state, unaryop_ty o)
         case USub:
             Py_INCREF(state->USub_singleton);
             return state->USub_singleton;
+        case UInc:
+            Py_INCREF(state->UInc_singleton);
+            return state->UInc_singleton;
     }
     Py_UNREACHABLE();
 }
@@ -8776,6 +8789,14 @@ obj2ast_unaryop(astmodulestate *state, PyObject* obj, unaryop_ty* out, PyArena*
         *out = USub;
         return 0;
     }
+    isinstance = PyObject_IsInstance(obj, state->UInc_type);
+    if (isinstance == -1) {
+        return 1;
+    }
+    if (isinstance) {
+        *out = UInc;
+        return 0;
+    }
 
     PyErr_Format(PyExc_TypeError, "expected some sort of unaryop, but got %R", obj);
     return 1;
@@ -10037,6 +10058,10 @@ astmodule_exec(PyObject *m)
         return -1;
     }
     Py_INCREF(state->USub_type);
+    if (PyModule_AddObject(m, "UInc", state->UInc_type) < 0) {
+        return -1;
+    }
+    Py_INCREF(state->UInc_type);
     if (PyModule_AddObject(m, "cmpop", state->cmpop_type) < 0) {
         return -1;
     }

@@ -53,6 +53,9 @@ ATEQUAL                 '@='
 RARROW                  '->'
 ELLIPSIS                '...'
 COLONEQUAL              ':='
+#ifdef DOSS_INCREMENT
+INCREMENT               '++'
+#endif
 
 OP
 AWAIT

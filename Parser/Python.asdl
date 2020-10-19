@@ -96,9 +96,9 @@ module Python
 
     operator = Add | Sub | Mult | MatMult | Div | Mod | Pow | LShift
                  | RShift | BitOr | BitXor | BitAnd | FloorDiv
-
-    unaryop = Invert | Not | UAdd | USub
-
+--#ifdef DOSS_INCREMENT
+    unaryop = Invert | Not | UAdd | USub | UInc
+--#endif
     cmpop = Eq | NotEq | Lt | LtE | Gt | GtE | Is | IsNot | In | NotIn
 
     comprehension = (expr target, expr iter, expr* ifs, int is_async)

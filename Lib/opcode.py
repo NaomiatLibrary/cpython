@@ -65,7 +65,9 @@ def_op('NOP', 9)
 def_op('UNARY_POSITIVE', 10)
 def_op('UNARY_NEGATIVE', 11)
 def_op('UNARY_NOT', 12)
-
+#ifdef DOSS_INCREMENT
+def_op('UNARY_INCREMENT', 13)
+#endif
 def_op('UNARY_INVERT', 15)
 
 def_op('BINARY_MATRIX_MULTIPLY', 16)

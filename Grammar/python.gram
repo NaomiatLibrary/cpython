@@ -329,6 +329,9 @@ expressions[expr_ty]:
     | expression
 expression[expr_ty] (memo):
     | a=disjunction 'if' b=disjunction 'else' c=expression { _Py_IfExp(b, a, c, EXTRA) }
+#ifdef DOSS_IFTHENELSE
+    | 'if' a=disjunction 'then' b=disjunction 'else' c=expression { _Py_IfExp(a, b, c, EXTRA) }
+#endif
     | disjunction
     | lambdef
 
@@ -452,6 +455,9 @@ factor[expr_ty] (memo):
     | '+' a=factor { _Py_UnaryOp(UAdd, a, EXTRA) }
     | '-' a=factor { _Py_UnaryOp(USub, a, EXTRA) }
     | '~' a=factor { _Py_UnaryOp(Invert, a, EXTRA) }
+#ifdef DOSS_INCREMENT
+    | '++' a=NAME { _Py_UnaryOp(UInc, a, EXTRA)}
+#endif
     | power
 power[expr_ty]:
     | a=await_primary '**' b=factor { _Py_BinOp(a, Pow, b, EXTRA) }

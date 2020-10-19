@@ -15,8 +15,8 @@ static KeywordToken *reserved_keywords[] = {
         {"if", 510},
         {"in", 518},
         {"as", 520},
-        {"is", 527},
-        {"or", 531},
+        {"is", 528},
+        {"or", 532},
         {NULL, -1},
     },
     (KeywordToken[]) {
@@ -24,8 +24,8 @@ static KeywordToken *reserved_keywords[] = {
         {"try", 511},
         {"for", 517},
         {"def", 523},
-        {"not", 526},
-        {"and", 532},
+        {"not", 527},
+        {"and", 533},
         {NULL, -1},
     },
     (KeywordToken[]) {
@@ -34,8 +34,9 @@ static KeywordToken *reserved_keywords[] = {
         {"elif", 515},
         {"else", 516},
         {"with", 519},
-        {"True", 528},
-        {"None", 530},
+        {"then", 525},
+        {"True", 529},
+        {"None", 531},
         {NULL, -1},
     },
     (KeywordToken[]) {
@@ -44,7 +45,7 @@ static KeywordToken *reserved_keywords[] = {
         {"break", 506},
         {"while", 512},
         {"class", 524},
-        {"False", 529},
+        {"False", 530},
         {NULL, -1},
     },
     (KeywordToken[]) {
@@ -53,7 +54,7 @@ static KeywordToken *reserved_keywords[] = {
         {"global", 508},
         {"import", 513},
         {"except", 521},
-        {"lambda", 525},
+        {"lambda", 526},
         {NULL, -1},
     },
     (KeywordToken[]) {
@@ -6996,7 +6997,11 @@ expressions_rule(Parser *p)
     return _res;
 }
 
-// expression: disjunction 'if' disjunction 'else' expression | disjunction | lambdef
+// expression:
+//     | disjunction 'if' disjunction 'else' expression
+//     | 'if' disjunction 'then' disjunction 'else' expression
+//     | disjunction
+//     | lambdef
 static expr_ty
 expression_rule(Parser *p)
 {
@@ -7064,6 +7069,54 @@ expression_rule(Parser *p)
         p->mark = _mark;
         D(fprintf(stderr, "%*c%s expression[%d-%d]: %s failed!\n", p->level, ' ',
                   p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "disjunction 'if' disjunction 'else' expression"));
+    }
+    { // 'if' disjunction 'then' disjunction 'else' expression
+        if (p->error_indicator) {
+            D(p->level--);
+            return NULL;
+        }
+        D(fprintf(stderr, "%*c> expression[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'if' disjunction 'then' disjunction 'else' expression"));
+        Token * _keyword;
+        Token * _keyword_1;
+        Token * _keyword_2;
+        expr_ty a;
+        expr_ty b;
+        expr_ty c;
+        if (
+            (_keyword = _PyPegen_expect_token(p, 510))  // token='if'
+            &&
+            (a = disjunction_rule(p))  // disjunction
+            &&
+            (_keyword_1 = _PyPegen_expect_token(p, 525))  // token='then'
+            &&
+            (b = disjunction_rule(p))  // disjunction
+            &&
+            (_keyword_2 = _PyPegen_expect_token(p, 516))  // token='else'
+            &&
+            (c = expression_rule(p))  // expression
+        )
+        {
+            D(fprintf(stderr, "%*c+ expression[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'if' disjunction 'then' disjunction 'else' expression"));
+            Token *_token = _PyPegen_get_last_nonnwhitespace_token(p);
+            if (_token == NULL) {
+                D(p->level--);
+                return NULL;
+            }
+            int _end_lineno = _token->end_lineno;
+            UNUSED(_end_lineno); // Only used by EXTRA macro
+            int _end_col_offset = _token->end_col_offset;
+            UNUSED(_end_col_offset); // Only used by EXTRA macro
+            _res = _Py_IfExp ( a , b , c , EXTRA );
+            if (_res == NULL && PyErr_Occurred()) {
+                p->error_indicator = 1;
+                D(p->level--);
+                return NULL;
+            }
+            goto done;
+        }
+        p->mark = _mark;
+        D(fprintf(stderr, "%*c%s expression[%d-%d]: %s failed!\n", p->level, ' ',
+                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "'if' disjunction 'then' disjunction 'else' expression"));
     }
     { // disjunction
         if (p->error_indicator) {
@@ -7141,7 +7194,7 @@ lambdef_rule(Parser *p)
         void *a;
         expr_ty b;
         if (
-            (_keyword = _PyPegen_expect_token(p, 525))  // token='lambda'
+            (_keyword = _PyPegen_expect_token(p, 526))  // token='lambda'
             &&
             (a = lambda_params_rule(p), 1)  // lambda_params?
             &&
@@ -8221,7 +8274,7 @@ inversion_rule(Parser *p)
         Token * _keyword;
         expr_ty a;
         if (
-            (_keyword = _PyPegen_expect_token(p, 526))  // token='not'
+            (_keyword = _PyPegen_expect_token(p, 527))  // token='not'
             &&
             (a = inversion_rule(p))  // inversion
         )
@@ -8857,7 +8910,7 @@ notin_bitwise_or_rule(Parser *p)
         Token * _keyword_1;
         expr_ty a;
         if (
-            (_keyword = _PyPegen_expect_token(p, 526))  // token='not'
+            (_keyword = _PyPegen_expect_token(p, 527))  // token='not'
             &&
             (_keyword_1 = _PyPegen_expect_token(p, 518))  // token='in'
             &&
@@ -8948,9 +9001,9 @@ isnot_bitwise_or_rule(Parser *p)
         Token * _keyword_1;
         expr_ty a;
         if (
-            (_keyword = _PyPegen_expect_token(p, 527))  // token='is'
+            (_keyword = _PyPegen_expect_token(p, 528))  // token='is'
             &&
-            (_keyword_1 = _PyPegen_expect_token(p, 526))  // token='not'
+            (_keyword_1 = _PyPegen_expect_token(p, 527))  // token='not'
             &&
             (a = bitwise_or_rule(p))  // bitwise_or
         )
@@ -8994,7 +9047,7 @@ is_bitwise_or_rule(Parser *p)
         Token * _keyword;
         expr_ty a;
         if (
-            (_keyword = _PyPegen_expect_token(p, 527))  // token='is'
+            (_keyword = _PyPegen_expect_token(p, 528))  // token='is'
             &&
             (a = bitwise_or_rule(p))  // bitwise_or
         )
@@ -9942,7 +9995,7 @@ term_raw(Parser *p)
     return _res;
 }
 
-// factor: '+' factor | '-' factor | '~' factor | power
+// factor: '+' factor | '-' factor | '~' factor | '++' NAME | power
 static expr_ty
 factor_rule(Parser *p)
 {
@@ -10073,6 +10126,42 @@ factor_rule(Parser *p)
         p->mark = _mark;
         D(fprintf(stderr, "%*c%s factor[%d-%d]: %s failed!\n", p->level, ' ',
                   p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "'~' factor"));
+    }
+    { // '++' NAME
+        if (p->error_indicator) {
+            D(p->level--);
+            return NULL;
+        }
+        D(fprintf(stderr, "%*c> factor[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'++' NAME"));
+        Token * _literal;
+        expr_ty a;
+        if (
+            (_literal = _PyPegen_expect_token(p, 54))  // token='++'
+            &&
+            (a = _PyPegen_name_token(p))  // NAME
+        )
+        {
+            D(fprintf(stderr, "%*c+ factor[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'++' NAME"));
+            Token *_token = _PyPegen_get_last_nonnwhitespace_token(p);
+            if (_token == NULL) {
+                D(p->level--);
+                return NULL;
+            }
+            int _end_lineno = _token->end_lineno;
+            UNUSED(_end_lineno); // Only used by EXTRA macro
+            int _end_col_offset = _token->end_col_offset;
+            UNUSED(_end_col_offset); // Only used by EXTRA macro
+            _res = _Py_UnaryOp ( UInc , a , EXTRA );
+            if (_res == NULL && PyErr_Occurred()) {
+                p->error_indicator = 1;
+                D(p->level--);
+                return NULL;
+            }
+            goto done;
+        }
+        p->mark = _mark;
+        D(fprintf(stderr, "%*c%s factor[%d-%d]: %s failed!\n", p->level, ' ',
+                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "'++' NAME"));
     }
     { // power
         if (p->error_indicator) {
@@ -10747,7 +10836,7 @@ atom_rule(Parser *p)
         D(fprintf(stderr, "%*c> atom[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'True'"));
         Token * _keyword;
         if (
-            (_keyword = _PyPegen_expect_token(p, 528))  // token='True'
+            (_keyword = _PyPegen_expect_token(p, 529))  // token='True'
         )
         {
             D(fprintf(stderr, "%*c+ atom[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'True'"));
@@ -10780,7 +10869,7 @@ atom_rule(Parser *p)
         D(fprintf(stderr, "%*c> atom[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'False'"));
         Token * _keyword;
         if (
-            (_keyword = _PyPegen_expect_token(p, 529))  // token='False'
+            (_keyword = _PyPegen_expect_token(p, 530))  // token='False'
         )
         {
             D(fprintf(stderr, "%*c+ atom[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'False'"));
@@ -10813,7 +10902,7 @@ atom_rule(Parser *p)
         D(fprintf(stderr, "%*c> atom[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'None'"));
         Token * _keyword;
         if (
-            (_keyword = _PyPegen_expect_token(p, 530))  // token='None'
+            (_keyword = _PyPegen_expect_token(p, 531))  // token='None'
         )
         {
             D(fprintf(stderr, "%*c+ atom[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'None'"));
@@ -24218,7 +24307,7 @@ _tmp_145_rule(Parser *p)
         Token * _keyword;
         expr_ty c;
         if (
-            (_keyword = _PyPegen_expect_token(p, 531))  // token='or'
+            (_keyword = _PyPegen_expect_token(p, 532))  // token='or'
             &&
             (c = conjunction_rule(p))  // conjunction
         )
@@ -24262,7 +24351,7 @@ _tmp_146_rule(Parser *p)
         Token * _keyword;
         expr_ty c;
         if (
-            (_keyword = _PyPegen_expect_token(p, 532))  // token='and'
+            (_keyword = _PyPegen_expect_token(p, 533))  // token='and'
             &&
             (c = inversion_rule(p))  // inversion
         )

@@ -1616,6 +1616,23 @@ main_loop:
                 goto error;
             DISPATCH();
         }
+#ifdef DOSS_INCREMENT
+        case TARGET(UNARY_INCREMENT): {
+	    PyObject *right = TOP();
+	    PyObject *inv,*sum;
+	    //-(~x)=x+1
+            inv=PyNumber_Invert(right);
+            if (inv == NULL)
+	      goto error;
+            sum = PyNumber_Negative(inv);
+            Py_DECREF(inv);
+            if (sum == NULL)
+              goto error;
+	    Py_DECREF(right);
+            SET_TOP(sum);
+	    DISPATCH();
+        }
+#endif
 
         case TARGET(BINARY_POWER): {
             PyObject *exp = POP();
